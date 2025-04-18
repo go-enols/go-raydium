@@ -30,6 +30,7 @@ script.go        // 监听日志、自动发现池子、价格输出等脚本
 1. **安装依赖**
 
 ```bash
+go get github.com/go-enols/go-raydium
 go mod tidy
 ```
 
