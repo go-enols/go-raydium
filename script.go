@@ -170,7 +170,7 @@ func ParseLpAddressByLogs(tx *solana.Transaction) (solana.PublicKey, error) {
 			continue // Program account index out of range.
 		}
 
-		if program.String() != core.Raydium_Liquidity_Program_V4.String() {
+		if program.String() != core.RaydiumLiquidityProgramV4.String() {
 			continue // Not called by serum.
 		}
 

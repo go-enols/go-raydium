@@ -13,10 +13,10 @@ var (
 	OpenBookDex solana.PublicKey = solana.MustPublicKeyFromBase58("srmqPvymJeFKQ4zGQed1GFppgkRHL9kaELCbyksJtPX")
 
 	// Raydium program ID. 流动性
-	Raydium_Liquidity_Program_V4 solana.PublicKey = solana.MustPublicKeyFromBase58("675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8") // This program calls Raydium Purchase IDO to create a new pair.
+	RaydiumLiquidityProgramV4 solana.PublicKey = solana.MustPublicKeyFromBase58("675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8") // This program calls Raydium Purchase IDO to create a new pair.
 
 	// Raydium Authority V4 program ID
-	Raydium_Authority_Program_V4 solana.PublicKey = solana.MustPublicKeyFromBase58("5Q544fKrFoe6tsEbD7S8EmxGTJYAKtTVhAW5Q5pge4j1") // This is also a wallet that holds tokens and do swaps.
+	RaydiumAuthorityProgramV4 solana.PublicKey = solana.MustPublicKeyFromBase58("5Q544fKrFoe6tsEbD7S8EmxGTJYAKtTVhAW5Q5pge4j1") // This is also a wallet that holds tokens and do swaps.
 )
 
 type LogApusic func(*ws.LogResult)

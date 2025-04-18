@@ -39,6 +39,20 @@ go mod tidy
 ```go
 package main
 
+import (
+	"context"
+	"fmt"
+	"log"
+	"os"
+	"os/signal"
+	"syscall"
+
+	"github.com/gagliardetto/solana-go/rpc"
+	"github.com/go-enols/go-raydium"
+	"github.com/go-enols/go-raydium/core"
+	"github.com/go-enols/gosolana"
+)
+
 var (
 	Proxy               = ""
 	NetWork rpc.Cluster = rpc.MainNetBeta
@@ -59,14 +73,14 @@ func main() {
 		log.Fatal(err)
 	}
 
-	script := NewScript(ctx, wallet.GetClient())
-	raydium := core.NewClient(ctx, option)
-	raydium.UseLog(script.RaydiumLogs)
-	go raydium.Start(ctx, core.Raydium_Liquidity_Program_V4, rpc.CommitmentProcessed)
+	script := raydium.NewScript(ctx, wallet.GetClient())
+	raydiumClient := core.NewClient(ctx, option)
+	raydiumClient.UseLog(script.RaydiumLogs)
+	go raydiumClient.Start(ctx, core.RaydiumLiquidityProgramV4, rpc.CommitmentProcessed)
 
 	openbook := core.NewClient(ctx, option)
-	raydium.UseLog(script.OpenBookLogs)
-	go openbook.Start(ctx, core.Raydium_Liquidity_Program_V4, rpc.CommitmentProcessed)
+	openbook.UseLog(script.OpenBookLogs)
+	go openbook.Start(ctx, core.RaydiumLiquidityProgramV4, rpc.CommitmentProcessed)
 
 	var stopChan = make(chan os.Signal, 1)
 	signal.Notify(stopChan, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
@@ -74,12 +88,24 @@ func main() {
 
 	fmt.Printf("正在退出...\n")
 }
-
 ```
 
 3. **解析交易Hash获取池子信息**
 
 ```go
+package main
+
+import (
+	"context"
+	"log"
+	"time"
+
+	"github.com/gagliardetto/solana-go"
+	"github.com/gagliardetto/solana-go/rpc"
+	"github.com/go-enols/go-raydium"
+	"github.com/go-enols/go-raydium/core"
+	"github.com/go-enols/gosolana"
+)
 
 var (
 	Proxy               = ""
@@ -105,7 +131,7 @@ func main() {
 		log.Println("查询交易信息失败 |", err)
 		return
 	}
-	poolAddress, err := ParseLpAddressByLogs(tx)
+	poolAddress, err := raydium.ParseLpAddressByLogs(tx)
 	if err != nil {
 		return
 	}
@@ -122,17 +148,22 @@ func main() {
 	log.Printf("当前价格 | 1 %s=%.9f %s", quote.Sysbol, price, base.Sysbol)
 	log.Printf("池子创建时间 | %s", retx.BlockTime.Time().Format(time.DateTime))
 	log.Printf("发现时间 | %s", time.Now().Format(time.DateTime))
-
-
-	var stopChan = make(chan os.Signal, 1)
-	signal.Notify(stopChan, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
-	<-stopChan // wait for SIGINT
-
-	fmt.Printf("正在退出...\n")
 }
 ```
 4. **根据池子地址获取池子价格**
 ```go
+package main
+
+import (
+	"context"
+	"log"
+	"time"
+
+	"github.com/gagliardetto/solana-go"
+	"github.com/gagliardetto/solana-go/rpc"
+	"github.com/go-enols/go-raydium/core"
+	"github.com/go-enols/gosolana"
+)
 
 var (
 	Proxy               = ""
@@ -153,9 +184,10 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	base, quote, price, err := core.GetPoolPriceByLiquidity(ctx, wallet.GetClient(), solana.MustPublicKeyFromBase58("74iTFH46SHuzD6YRVpFCGu911XMv2oqThqMyyZK9w7vX"))
 	if err != nil {
-		log.Println(poolAddress.String(), "查询池子数据失败", err)
+		log.Fatal(err)
 		return
 	}
 	log.Println("-----------------------------------------")
@@ -163,12 +195,6 @@ func main() {
 	log.Printf("%s | 合约地址 %s | Token %s", quote.Sysbol, quote.Address, quote.Mint)
 	log.Printf("当前价格 | 1 %s=%.9f %s", quote.Sysbol, price, base.Sysbol)
 	log.Printf("发现时间 | %s", time.Now().Format(time.DateTime))
-
-	var stopChan = make(chan os.Signal, 1)
-	signal.Notify(stopChan, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
-	<-stopChan // wait for SIGINT
-
-	fmt.Printf("正在退出...\n")
 }
 ```
 ## 关键实现说明
