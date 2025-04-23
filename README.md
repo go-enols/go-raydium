@@ -40,9 +40,9 @@ go mod tidy
 所有常用用法和场景的示例代码已移至 [`examples`](./examples) 文件夹。  
 请参考以下链接获取详细示例：
 
-- [监听并输出新池子价格](./examples/monitor_new_pool.go)
-- [解析交易 Hash 获取池子信息](./examples/parse_tx_get_pool.go)
-- [根据池子地址获取池子价格](./examples/get_pool_price.go)
+- [监听并输出新池子价格](./examples/monit_pool_create/main.go)
+- [解析交易 Hash 获取池子信息](./examples/parse_transfer_log_pool/main.go)
+- [监听池子获取所有的 swap 交易并输出交易数据](./examples/swap-log/main.go)
 
 你可以直接复制、运行或根据需要修改这些示例。
 
