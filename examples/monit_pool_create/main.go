@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	Proxy               = "http://127.0.0.1:7890"
+	Proxy               = ""
 	NetWork rpc.Cluster = rpc.MainNetBeta
 )
 
