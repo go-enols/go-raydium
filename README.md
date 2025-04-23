@@ -15,6 +15,7 @@ core/
   types.go       // 通用类型定义
   util.go        // AMM公式、精度工具
 script.go        // 监听日志、自动发现池子、价格输出等脚本
+examples/        // 示例代码
 ```
 
 ## 主要功能
@@ -34,171 +35,16 @@ go get github.com/go-enols/go-raydium
 go mod tidy
 ```
 
-2. **监听并输出新池子价格**
+2. **示例代码**
 
-```go
-package main
+所有常用用法和场景的示例代码已移至 [`examples`](./examples) 文件夹。  
+请参考以下链接获取详细示例：
 
-import (
-	"context"
-	"fmt"
-	"log"
-	"os"
-	"os/signal"
-	"syscall"
+- [监听并输出新池子价格](./examples/monitor_new_pool.go)
+- [解析交易 Hash 获取池子信息](./examples/parse_tx_get_pool.go)
+- [根据池子地址获取池子价格](./examples/get_pool_price.go)
 
-	"github.com/gagliardetto/solana-go/rpc"
-	"github.com/go-enols/go-raydium"
-	"github.com/go-enols/go-raydium/core"
-	"github.com/go-enols/gosolana"
-)
-
-var (
-	Proxy               = ""
-	NetWork rpc.Cluster = rpc.MainNetBeta
-)
-
-func main() {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	option := gosolana.Option{
-		RpcUrl:  NetWork.RPC,
-		WsUrl:   NetWork.WS,
-		Proxy:   Proxy,
-		WsProxy: Proxy,
-	}
-	// 创建Solana钱包实例
-	wallet, err := gosolana.NewWallet(ctx, option)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	script := raydium.MonitPoolCreateScipt(ctx, wallet.GetClient())
-	raydiumClient := core.NewClient(ctx, option)
-	raydiumClient.UseLog(script.RaydiumLogs)
-	go raydiumClient.Start(ctx, core.RaydiumLiquidityProgramV4, rpc.CommitmentProcessed)
-
-	openbook := core.NewClient(ctx, option)
-	openbook.UseLog(script.OpenBookLogs)
-	go openbook.Start(ctx, core.RaydiumLiquidityProgramV4, rpc.CommitmentProcessed)
-
-	var stopChan = make(chan os.Signal, 1)
-	signal.Notify(stopChan, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
-	<-stopChan // wait for SIGINT
-
-	fmt.Printf("正在退出...\n")
-}
-```
-
-3. **解析交易 Hash 获取池子信息**
-
-```go
-package main
-
-import (
-	"context"
-	"log"
-	"time"
-
-	"github.com/gagliardetto/solana-go"
-	"github.com/gagliardetto/solana-go/rpc"
-	"github.com/go-enols/go-raydium"
-	"github.com/go-enols/go-raydium/core"
-	"github.com/go-enols/gosolana"
-)
-
-var (
-	Proxy               = ""
-	NetWork rpc.Cluster = rpc.MainNetBeta
-)
-
-func main() {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	option := gosolana.Option{
-		RpcUrl:  NetWork.RPC,
-		WsUrl:   NetWork.WS,
-		Proxy:   Proxy,
-		WsProxy: Proxy,
-	}
-	// 创建Solana钱包实例
-	wallet, err := gosolana.NewWallet(ctx, option)
-	if err != nil {
-		log.Fatal(err)
-	}
-	retx, tx, err := core.GetConfirmedTransaction(ctx, wallet.GetClient(), solana.MustSignatureFromBase58("5CVDHTjoXRw47MoQn6CYx7imiEinFyvNT7BY85LXpBSWYgNu7ErtEh8tA3rw8Za7qfkhwksbNGnuKmxupYtpYfpU"))
-	if err != nil {
-		log.Println("查询交易信息失败 |", err)
-		return
-	}
-	poolAddress, err := raydium.ParseLpAddressByLogs(tx)
-	if err != nil {
-		return
-	}
-	base, quote, price, err := core.GetPoolPriceByLiquidity(ctx, wallet.GetClient(), poolAddress)
-	if err != nil {
-		log.Println(poolAddress.String(), "查询池子数据失败", err)
-		return
-	}
-	log.Println("-----------------------------------------")
-	log.Println("交易Hash", tx.Signatures)
-	log.Println("发现一个新的raydium池子:", poolAddress.String(), base.Sysbol, "-", quote.Sysbol)
-	log.Printf("%s | 合约地址 %s | Token %s", base.Sysbol, base.Address, base.Mint)
-	log.Printf("%s | 合约地址 %s | Token %s", quote.Sysbol, quote.Address, quote.Mint)
-	log.Printf("当前价格 | 1 %s=%.9f %s", quote.Sysbol, price, base.Sysbol)
-	log.Printf("池子创建时间 | %s", retx.BlockTime.Time().Format(time.DateTime))
-	log.Printf("发现时间 | %s", time.Now().Format(time.DateTime))
-}
-```
-
-4. **根据池子地址获取池子价格**
-
-```go
-package main
-
-import (
-	"context"
-	"log"
-	"time"
-
-	"github.com/gagliardetto/solana-go"
-	"github.com/gagliardetto/solana-go/rpc"
-	"github.com/go-enols/go-raydium/core"
-	"github.com/go-enols/gosolana"
-)
-
-var (
-	Proxy               = ""
-	NetWork rpc.Cluster = rpc.MainNetBeta
-)
-
-func main() {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	option := gosolana.Option{
-		RpcUrl:  NetWork.RPC,
-		WsUrl:   NetWork.WS,
-		Proxy:   Proxy,
-		WsProxy: Proxy,
-	}
-	// 创建Solana钱包实例
-	wallet, err := gosolana.NewWallet(ctx, option)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	base, quote, price, err := core.GetPoolPriceByLiquidity(ctx, wallet.GetClient(), solana.MustPublicKeyFromBase58("74iTFH46SHuzD6YRVpFCGu911XMv2oqThqMyyZK9w7vX"))
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-	log.Println("-----------------------------------------")
-	log.Printf("%s | 合约地址 %s | Token %s", base.Sysbol, base.Address, base.Mint)
-	log.Printf("%s | 合约地址 %s | Token %s", quote.Sysbol, quote.Address, quote.Mint)
-	log.Printf("当前价格 | 1 %s=%.9f %s", quote.Sysbol, price, base.Sysbol)
-	log.Printf("发现时间 | %s", time.Now().Format(time.DateTime))
-}
-```
+你可以直接复制、运行或根据需要修改这些示例。
 
 ## 关键实现说明
 
