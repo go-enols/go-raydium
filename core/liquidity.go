@@ -86,7 +86,7 @@ func GetPoolPriceByLiquidity(ctx context.Context, client *rpc.Client, poolPubkey
 	}
 
 	// 查询两个 vault 的余额
-	amounts, err := GetMultipleAccountsBalances(ctx, client, []solana.PublicKey{vault0, vault1})
+	amounts, err := GetMultipleAccountsBalances(ctx, client, [2]solana.PublicKey{vault0, vault1})
 	if err != nil || len(amounts) != 2 || amounts[0] == nil || amounts[1] == nil {
 		return nil, nil, 0, errors.New("failed to get vault balances")
 	}
@@ -138,9 +138,9 @@ func calcCammPrice(camm *CAMM_STATE_LAYOUT) float64 {
 }
 
 // 查询多个 SPL Token 账户余额（返回 UiAmount 数组，顺序与输入一致）
-func GetMultipleAccountsBalances(ctx context.Context, client *rpc.Client, accounts []solana.PublicKey) ([]*AmmV4Account, error) {
+func GetMultipleAccountsBalances(ctx context.Context, client *rpc.Client, accounts [2]solana.PublicKey) ([]*AmmV4Account, error) {
 	balancesResponse, err := client.GetMultipleAccountsWithOpts(
-		ctx, accounts, &rpc.GetMultipleAccountsOpts{
+		ctx, accounts[:], &rpc.GetMultipleAccountsOpts{
 			Encoding:   solana.EncodingJSONParsed,
 			Commitment: rpc.CommitmentProcessed,
 		},

@@ -67,7 +67,7 @@ func ParsePoolAccountByRPC(ctx context.Context, client *rpc.Client, poolPubkey s
 	return nil, errors.New("unsupported or unknown pool layout")
 }
 
-// 等待交易被确认
+// 查询已确认交易的详细信息
 func GetConfirmedTransaction(ctx context.Context, client *rpc.Client, tx solana.Signature) (*rpc.GetTransactionResult, *solana.Transaction, error) {
 	for {
 		select {

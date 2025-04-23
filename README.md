@@ -23,7 +23,7 @@ script.go        // 监听日志、自动发现池子、价格输出等脚本
 - **池子价格与流动性查询**：自动获取池子的 base/quote 资产余额，支持 AMM 恒定乘积公式、Uniswap V3 价格公式。
 - **元数据解析**：自动查询并解析 SPL Token 的 name、symbol、uri 等链上元数据。
 - **WebSocket 日志监听**：支持监听 Raydium/OpenBook 相关链上日志，自动发现新池子并输出行情。
-- **高精度计算**：支持大整数、128位小端字节序、AMM滑点、手续费等高精度处理。
+- **高精度计算**：支持大整数、128 位小端字节序、AMM 滑点、手续费等高精度处理。
 
 ## 快速开始
 
@@ -73,7 +73,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	script := raydium.NewScript(ctx, wallet.GetClient())
+	script := raydium.MonitPoolCreateScipt(ctx, wallet.GetClient())
 	raydiumClient := core.NewClient(ctx, option)
 	raydiumClient.UseLog(script.RaydiumLogs)
 	go raydiumClient.Start(ctx, core.RaydiumLiquidityProgramV4, rpc.CommitmentProcessed)
@@ -90,7 +90,7 @@ func main() {
 }
 ```
 
-3. **解析交易Hash获取池子信息**
+3. **解析交易 Hash 获取池子信息**
 
 ```go
 package main
@@ -150,7 +150,9 @@ func main() {
 	log.Printf("发现时间 | %s", time.Now().Format(time.DateTime))
 }
 ```
+
 4. **根据池子地址获取池子价格**
+
 ```go
 package main
 
@@ -197,6 +199,7 @@ func main() {
 	log.Printf("发现时间 | %s", time.Now().Format(time.DateTime))
 }
 ```
+
 ## 关键实现说明
 
 - **池子类型识别**：`core/layout.go` 的 `ParsePoolAccountByRPC` 会根据账户长度和字段特征自动判断池子类型。
@@ -204,7 +207,7 @@ func main() {
   - V4/CPMM：优先用 AMM 恒定乘积公式（见 `util.go`），兼容滑点和手续费。
   - cAMM：用 sqrtPriceX64 解析，严格按 Uniswap V3 公式高精度计算。
 - **元数据获取**：通过 PDA 推导和链上查询，自动获取 SPL Token 的 name/symbol/uri。
-- **WebSocket监听**：`core/client.go` 支持异步日志监听，`script.go` 可自动发现新池子并输出行情。
+- **WebSocket 监听**：`core/client.go` 支持异步日志监听，`script.go` 可自动发现新池子并输出行情。
 
 ## 依赖
 

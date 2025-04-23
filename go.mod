@@ -17,6 +17,7 @@ require (
 	github.com/ethereum/go-ethereum v1.15.8 // indirect
 	github.com/fatih/color v1.18.0 // indirect
 	github.com/gagliardetto/treeout v0.1.4 // indirect
+	github.com/go-enols/go-log v0.0.3
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/rpc v1.2.1 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
