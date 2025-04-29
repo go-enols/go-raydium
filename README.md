@@ -45,6 +45,7 @@ go mod tidy
 - [监听池子获取所有的 swap 交易并输出交易数据](./examples/monit_swap_log/main.go)
 - [raydium 买卖交易示例](./examples/swap_tranfer/main.go)
 - [查询池子价格](./examples/price/main.go)
+- [获取市场数据](./examples/market/main.go)
 
 你可以直接复制、运行或根据需要修改这些示例。
 

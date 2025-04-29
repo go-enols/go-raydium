@@ -277,8 +277,8 @@ func (l *LIQUIDITY_STATE_LAYOUT_V4) MarketInfo(ctx context.Context, client *rpc.
 	}
 	// 1. 尝试V4
 	result := new(MarketStateLayoutV3)
-	if err := result.UnmarshalBinary(data); err == nil {
-		return nil, nil
+	if err := result.UnmarshalBinary(data); err != nil {
+		return nil, err
 	}
 	return result, nil
 }
