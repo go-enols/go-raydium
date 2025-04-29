@@ -31,7 +31,7 @@ examples/        // 示例代码
 1. **安装依赖**
 
 ```bash
-go get github.com/go-enols/go-raydium
+go get -u github.com/go-enols/go-raydium
 go mod tidy
 ```
 
@@ -44,6 +44,7 @@ go mod tidy
 - [解析交易 Hash 获取池子信息](./examples/parse_transfer_log_pool/main.go)
 - [监听池子获取所有的 swap 交易并输出交易数据](./examples/monit_swap_log/main.go)
 - [raydium 买卖交易示例](./examples/swap_tranfer/main.go)
+- [查询池子价格](./examples/price/main.go)
 
 你可以直接复制、运行或根据需要修改这些示例。
 
