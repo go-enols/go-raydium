@@ -23,6 +23,7 @@ func main() {
 		WsUrl:   NetWork.WS,
 		Proxy:   Proxy,
 		WsProxy: Proxy,
+		Pkey:    "26HX8sewDP8Y6xTE3v4DtR5HHB5D4ua1MUxPEHyUA2j3SrFt4FDLwaXTWZg7BoeGGooyojtftUjR8CTMCczhQyrD",
 	}
 	// 创建Solana钱包实例
 	wallet, err := ammV4.NewClient(ctx, option)

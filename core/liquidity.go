@@ -11,13 +11,16 @@ import (
 	"github.com/go-enols/gosolana"
 )
 
+var NotFindSOL = errors.New("没有找到SOL")
+
 type Liquidity struct {
 	Address  solana.PublicKey
 	Mint     solana.PublicKey
 	Decimals int
-	Value    uint64 // CAMM 类型的池子 存在128位超大整数所以不写入这里
+	Value    float64 // CAMM 类型的池子 存在128位超大整数所以不写入这里
 	Name     string
 	Sysbol   string
+	Cost     float64 // 价值 如果是CAMM类型的池子无法计算
 }
 
 func (l *Liquidity) MintAddress() solana.PublicKey {
@@ -29,10 +32,16 @@ func (l *Liquidity) MintAddressString() string {
 }
 
 // 查询池子的价格（自动识别类型并查余额）
-func GetPoolPriceByLiquidity(ctx context.Context, client *rpc.Client, poolPubkey solana.PublicKey) (base, quote *Liquidity, price float64, err error) {
+//
+// amountIn 可选配置输入金额
+func GetPoolPriceByLiquidity(ctx context.Context, client *rpc.Client, poolPubkey solana.PublicKey, amount ...float64) (base, quote *Liquidity, amountOut float64, err error) {
 	result, err := ParsePoolAccountByRPC(ctx, client, poolPubkey)
 	if err != nil {
 		return nil, nil, 0, err
+	}
+	var amountIn float64 = 1
+	if len(amount) > 0 {
+		amountIn = amount[0]
 	}
 
 	var vault0, vault1 solana.PublicKey
@@ -41,7 +50,7 @@ func GetPoolPriceByLiquidity(ctx context.Context, client *rpc.Client, poolPubkey
 
 	switch result.Type {
 	case PoolTypeV4:
-		log.Println("池类型: RaydiumV4")
+		log.Println("池类型: RaydiumAmmV4")
 		vault0 = result.V4.BaseVault
 		vault1 = result.V4.QuoteVault
 		mint0 = result.V4.BaseMint
@@ -59,7 +68,7 @@ func GetPoolPriceByLiquidity(ctx context.Context, client *rpc.Client, poolPubkey
 	case PoolTypeCAMM:
 		log.Println("池类型: RaydiumCAMM")
 		// cAMM直接用 sqrtPriceX64 算价格，无需查余额
-		price = calcCammPrice(result.CAMM)
+		amountOut = calcCammPrice(result.CAMM)
 		meta0, err := gosolana.GetTokenMetaOnChain(ctx, client, result.CAMM.TokenMint0)
 		if err != nil {
 			return nil, nil, 0, err
@@ -80,7 +89,7 @@ func GetPoolPriceByLiquidity(ctx context.Context, client *rpc.Client, poolPubkey
 			Name:     meta1.Name,
 			Sysbol:   meta1.Symbol,
 		}
-		return base, quote, price, nil
+		return base, quote, amountOut, nil
 	default:
 		return nil, nil, 0, errors.New("unsupported pool type")
 	}
@@ -103,7 +112,7 @@ func GetPoolPriceByLiquidity(ctx context.Context, client *rpc.Client, poolPubkey
 	base = &Liquidity{
 		Mint:     mint0,
 		Address:  vault0,
-		Value:    uint64(amount0 * pow10f(decimals0)),
+		Value:    amount0,
 		Name:     meta0.Name,
 		Sysbol:   meta0.Symbol,
 		Decimals: decimals0, // 保留此行（正确来源
@@ -111,7 +120,7 @@ func GetPoolPriceByLiquidity(ctx context.Context, client *rpc.Client, poolPubkey
 	quote = &Liquidity{
 		Mint:     mint1,
 		Address:  vault1,
-		Value:    uint64(amount1 * pow10f(decimals1)),
+		Value:    amount1,
 		Name:     meta1.Name,
 		Sysbol:   meta1.Symbol,
 		Decimals: decimals1,
@@ -121,12 +130,25 @@ func GetPoolPriceByLiquidity(ctx context.Context, client *rpc.Client, poolPubkey
 	if amount0 == 0 {
 		return base, quote, 0, errors.New("token0 vault is empty")
 	}
-
-	if base.Mint.String() != WSOL {
-		base, quote = quote, base
+	if amount1 == 0 {
+		return base, quote, 0, errors.New("token1 vault is empty")
 	}
-	price = SolForTokens(1, amount1, amount0, 0.25)
-	return base, quote, price, nil
+
+	if base.Mint.String() == WSOL || quote.Mint.String() == WSOL {
+		if base.Mint.String() != WSOL {
+			base, quote = quote, base
+		}
+	} else {
+		return base, quote, 0, NotFindSOL
+	}
+
+	price := SolForTokens(1, amount1, amount0, 0.25)
+
+	base.Cost = amount0
+	quote.Cost = amount1 / price
+	amountOut = amountIn * price
+
+	return base, quote, amountOut, nil
 }
 
 // cAMM池子价格计算（严格Uniswap V3风格）
