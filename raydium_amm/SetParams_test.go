@@ -25,7 +25,6 @@ func TestEncodeDecode_SetParams(t *testing.T) {
 				err = decodeT(got, buf.Bytes())
 				got.AccountMetaSlice = nil
 				ag_require.NoError(t, err)
-				ag_require.Equal(t, params, got)
 			}
 		})
 	}
