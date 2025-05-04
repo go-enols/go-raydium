@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+
 	ag_binary "github.com/gagliardetto/binary"
 	ag_solanago "github.com/gagliardetto/solana-go"
 )
@@ -1067,7 +1068,10 @@ func (pc *PrecisionCalculator) CalculatePrice(camm *PoolState) *big.Rat {
 func (obj *PoolState) Price() float64{
 	pc := NewPrecisionCalculator()
 	priceRat := pc.CalculatePrice(obj)
-	priceFloat, _ := priceRat.Float64()
+	priceFloat, ok := priceRat.Float64()
+	if ok {
+		return 0
+	}
 	return priceFloat
 }
 

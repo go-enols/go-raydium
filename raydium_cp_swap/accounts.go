@@ -4,14 +4,15 @@ package raydium_cp_swap
 
 import (
 	"context"
-	"errors"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	ag_binary "github.com/gagliardetto/binary"
+	"github.com/gagliardetto/solana-go"
 	ag_solanago "github.com/gagliardetto/solana-go"
-	"github.com/go-enols/go-log"
 	"github.com/gagliardetto/solana-go/rpc"
+	"github.com/go-enols/go-log"
 	"github.com/go-enols/gosolana"
 )
 
@@ -606,6 +607,8 @@ func (obj *PoolState) UnmarshalWithDecoder(decoder *ag_binary.Decoder) (err erro
 }
 
 type AmmPriceInfo struct{
+	BaseMint solana.PublicKey
+	QuoteMint solana.PublicKey
 	BaseAmount float64
 	QuoteAmount float64
 	BaseDecimals int
@@ -630,11 +633,14 @@ func (obj *PoolState) PriceInfo(ctx context.Context, client *rpc.Client)(*AmmPri
 	}
 	return &AmmPriceInfo{
 		BaseAmount:  amounts[0].Parsed.Info.TokenAmount.UIAmount,
-		QuoteAmount:  amounts[1].Parsed.Info.TokenAmount.UIAmount,
-		BaseDecimals: amounts[0].Parsed.Info.TokenAmount.Decimals,
-		QuoteDecimals: amounts[1].Parsed.Info.TokenAmount.Decimals,
 		BaseName: meta0.Symbol,
+		BaseDecimals: amounts[0].Parsed.Info.TokenAmount.Decimals,
+		BaseMint: solana.MustPublicKeyFromBase58(amounts[0].Parsed.Info.Mint),
+		
+		QuoteAmount:  amounts[1].Parsed.Info.TokenAmount.UIAmount,
+		QuoteDecimals: amounts[1].Parsed.Info.TokenAmount.Decimals,
 		QuoteName: meta1.Symbol,
+		QuoteMint: solana.MustPublicKeyFromBase58(amounts[1].Parsed.Info.Mint),
 	}, nil
 }
 

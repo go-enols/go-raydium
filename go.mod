@@ -8,7 +8,7 @@ require (
 	github.com/gagliardetto/gofuzz v1.2.2
 	github.com/gagliardetto/solana-go v1.12.0
 	github.com/gagliardetto/treeout v0.1.4
-	github.com/go-enols/go-log v0.0.3
+	github.com/go-enols/go-log v0.0.4
 	github.com/go-enols/gosolana v0.1.9
 	github.com/stretchr/testify v1.10.0
 )

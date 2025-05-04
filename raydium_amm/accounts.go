@@ -4,11 +4,12 @@ package raydium_amm
 
 import (
 	"context"
-	"errors"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	ag_binary "github.com/gagliardetto/binary"
+	"github.com/gagliardetto/solana-go"
 	ag_solanago "github.com/gagliardetto/solana-go"
 	"github.com/gagliardetto/solana-go/rpc"
 	"github.com/go-enols/go-log"
@@ -880,6 +881,8 @@ type AmmPriceInfo struct{
 	QuoteDecimals int
 	BaseName string
 	QuoteName string
+	BaseMint solana.PublicKey
+	QuoteMint solana.PublicKey
 }
 func (obj *AmmInfo) PriceInfo(ctx context.Context, client *rpc.Client)(*AmmPriceInfo, error){
 	amounts, err := GetMultipleAccountsBalances(ctx, client, [2]ag_solanago.PublicKey{
@@ -903,6 +906,8 @@ func (obj *AmmInfo) PriceInfo(ctx context.Context, client *rpc.Client)(*AmmPrice
 		QuoteDecimals: amounts[1].Parsed.Info.TokenAmount.Decimals,
 		BaseName: meta0.Symbol,
 		QuoteName: meta1.Symbol,
+		BaseMint: solana.MustPublicKeyFromBase58(amounts[0].Parsed.Info.Mint),
+		QuoteMint: solana.MustPublicKeyFromBase58(amounts[1].Parsed.Info.Mint),
 	}, nil
 }
 

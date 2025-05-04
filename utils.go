@@ -1,6 +1,7 @@
 package raydium
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math"
@@ -10,6 +11,11 @@ import (
 	"github.com/gagliardetto/solana-go"
 	"github.com/gagliardetto/solana-go/programs/system"
 	"github.com/gagliardetto/solana-go/programs/token"
+	"github.com/gagliardetto/solana-go/rpc"
+	"github.com/go-enols/go-log"
+	"github.com/go-enols/go-raydium/amm_v3"
+	"github.com/go-enols/go-raydium/raydium_amm"
+	"github.com/go-enols/go-raydium/raydium_cp_swap"
 )
 
 // 创建关联代币账户指令
@@ -147,7 +153,7 @@ func bigIntToUint128(n *big.Int) (bin.Uint128, error) {
 	return bin.Uint128{Lo: lo, Hi: hi}, nil
 }
 
-// TokensForSol 计算用代币换取SOL的数量（AMM恒定乘积公式）
+// TokensForSol 计算用SOL换取代币的数量（AMM恒定乘积公式）
 func TokensForSol(tokenAmount, baseVaultBalance, quoteVaultBalance, swapFee float64) float64 {
 	// 计算有效卖出的代币数量（扣除手续费）
 	effectiveTokensSold := tokenAmount * (1 - (swapFee / 100))
@@ -165,7 +171,7 @@ func TokensForSol(tokenAmount, baseVaultBalance, quoteVaultBalance, swapFee floa
 	return solReceived
 }
 
-// SolForTokens 计算用SOL换取代币的数量（AMM恒定乘积公式）
+// SolForTokens 计算用代币换取SOL的数量（AMM恒定乘积公式）
 func SolForTokens(solAmount, baseVaultBalance, quoteVaultBalance, swapFee float64) float64 {
 	// 计算有效使用的SOL（扣除手续费）
 	effectiveSolUsed := solAmount - (solAmount * (swapFee / 100))
@@ -181,4 +187,55 @@ func SolForTokens(solAmount, baseVaultBalance, quoteVaultBalance, swapFee float6
 
 	// 四舍五入到9位小数
 	return tokensReceived
+}
+
+type PoolTypeByName string
+
+const (
+	AmmV3 PoolTypeByName = "ammV3"
+	AmmV4 PoolTypeByName = "ammV4"
+	CPMM  PoolTypeByName = "cpmm"
+)
+
+type ParsePoolResult struct {
+	AmmV3 *amm_v3.PoolState
+	AmmV4 *raydium_amm.AmmInfo
+	Cpmm  *raydium_cp_swap.PoolState
+	Types PoolTypeByName
+}
+
+// 根据池数据自动判断属于什么池子
+func ParsePool(client *rpc.Client, poolAddress solana.PublicKey, data ...[]byte) (*ParsePoolResult, error) {
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
+	var poolData []byte
+	if len(data) > 0 {
+		poolData = data[0]
+	} else {
+		out, err := client.GetAccountInfo(ctx, poolAddress)
+		if err != nil {
+			log.Fatal(err)
+		}
+		poolData = out.GetBinary()
+	}
+
+	result := &ParsePoolResult{
+		AmmV3: new(amm_v3.PoolState),
+		AmmV4: new(raydium_amm.AmmInfo),
+		Cpmm:  new(raydium_cp_swap.PoolState),
+	}
+	if err := bin.NewBinDecoder(poolData).Decode(result.AmmV3); err != nil {
+		if err := bin.NewBinDecoder(poolData).Decode(result.AmmV4); err != nil {
+			if err := bin.NewBinDecoder(poolData).Decode(result.Cpmm); err != nil {
+				return nil, errors.New("未知的池类型")
+			} else {
+				result.Types = CPMM
+			}
+		} else {
+			result.Types = AmmV4
+		}
+	} else {
+		result.Types = AmmV3
+	}
+	return result, nil
 }
