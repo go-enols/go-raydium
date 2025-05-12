@@ -36,6 +36,8 @@ github.com/go-enols/go-log v0.0.3 h1:Qp7S+iMWmWeZhoxvAqPgxeA4TUxNZhxO3idwBv1GbyU
 github.com/go-enols/go-log v0.0.3/go.mod h1:jXXj5EeeM+hqFsZNGlmA8QS/DCO6TwhBOxeBu+qQx7Q=
 github.com/go-enols/go-log v0.0.4 h1:u1Wvz5efrrbAee9ttXLubmTF7gqFWuSCMUh0onhcgfE=
 github.com/go-enols/go-log v0.0.4/go.mod h1:jXXj5EeeM+hqFsZNGlmA8QS/DCO6TwhBOxeBu+qQx7Q=
+github.com/go-enols/go-log v0.0.5 h1:lwcAMo0EQBA/4m0CXepQloIafDjOJuCL/PZHrM3c6bY=
+github.com/go-enols/go-log v0.0.5/go.mod h1:jXXj5EeeM+hqFsZNGlmA8QS/DCO6TwhBOxeBu+qQx7Q=
 github.com/go-enols/gosolana v0.1.9 h1:eGOoWL9ISM4Qi8Nbg1xGIUwB6Kuvd9EzAvklBVp226Q=
 github.com/go-enols/gosolana v0.1.9/go.mod h1:f+26vE5lqoNKGRGLxSscNWIjpi2B4AOTkz0wb6Mr+i8=
 github.com/golang/snappy v0.0.1/go.mod h1:/XxbfmMg8lxefKM7IXC3fBNl/7bRcc72aCRzEWrmP2Q=
