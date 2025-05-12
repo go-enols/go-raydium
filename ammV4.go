@@ -11,6 +11,7 @@ import (
 
 	bin "github.com/gagliardetto/binary"
 	"github.com/gagliardetto/solana-go"
+	associatedtokenaccount "github.com/gagliardetto/solana-go/programs/associated-token-account"
 	computebudget "github.com/gagliardetto/solana-go/programs/compute-budget"
 	"github.com/gagliardetto/solana-go/rpc"
 	"github.com/go-enols/go-log"
@@ -18,6 +19,10 @@ import (
 	"github.com/go-enols/go-raydium/raydium_amm"
 	"github.com/go-enols/gosolana"
 )
+
+func init() {
+	raydium_amm.SetProgramID(AmmV4ProgramId)
+}
 
 type V4Client struct {
 	*gosolana.Wallet
@@ -160,7 +165,9 @@ func (v *V4Client) createSwapInstruction(
 		priceInfo.BaseDecimals, priceInfo.QuoteDecimals = priceInfo.QuoteDecimals, priceInfo.BaseDecimals
 		priceInfo.BaseName, priceInfo.QuoteName = priceInfo.QuoteName, priceInfo.BaseName
 		mint0, mint1 = mint1, mint0
-		vault0, vault1 = vault1, vault0
+		// vault0, vault1 = vault1, vault0
+		// market.BaseVault, market.QuoteVault = market.QuoteVault, market.BaseVault
+		// market.Bids, market.Asks = market.Asks, market.Bids
 	}
 	var price float64
 	var amountIn, miniAmountOut uint64
@@ -170,27 +177,39 @@ func (v *V4Client) createSwapInstruction(
 		amountIn = uint64(amount * math.Pow10(int(priceInfo.BaseDecimals)))
 		amountOut = amount / price * (1 - slippage)
 		miniAmountOut = uint64(amountOut * math.Pow10(int(priceInfo.QuoteDecimals)))
-		log.Debugf("BUY %.6f %s -> %.6f %s ", amount, priceInfo.BaseName, amountOut, priceInfo.QuoteName)
+		log.Infof("BUY %.6f %s -> %.6f %s ", amount, priceInfo.BaseName, amountOut, priceInfo.QuoteName)
 	} else {
 		price = TokensForSol(1, priceInfo.BaseAmount, priceInfo.QuoteAmount, 0.25)
 		amountIn = uint64(amount * math.Pow10(int(priceInfo.QuoteDecimals)))
 		amountOut = amount / price * (1 - slippage)
 		miniAmountOut = uint64(amountOut * math.Pow10(int(priceInfo.BaseDecimals)))
-		log.Debugf("SHELL %.6f %s -> %.6f %s ", amount, priceInfo.QuoteName, amountOut, priceInfo.BaseName)
+		log.Infof("SHELL %.6f %s -> %.6f %s ", amount, priceInfo.QuoteName, amountOut, priceInfo.BaseName)
 	}
-	crteteAccount, closeAccount, account, err := v.createAccountInstruction(amountIn)
+
+	solIn := amountIn
+	if !isBuy {
+		solIn = 0
+	}
+
+	crteteAccount, closeAccount, account, err := v.createAccountInstruction(solIn)
+	if err != nil {
+		return nil, err
+	}
 	if err != nil {
 		return nil, err
 	}
 	log.Debugf("创建 Base 过渡账户 | %s", account.String())
+
 	tokenCreate, tokenAccount, err := v.checkTokenAccount(mint1)
 	if err != nil {
 		return nil, err
 	}
+
 	result = append(result, crteteAccount...)
 	if tokenCreate != nil {
 		result = append(result, tokenCreate)
 	}
+
 	// 将uint64转换为[]byte
 	nonceBytes := make([]byte, 8)
 	binary.BigEndian.PutUint64(nonceBytes, market.VaultSignerNonce)
@@ -209,14 +228,10 @@ func (v *V4Client) createSwapInstruction(
 		inputTokenAccount, outputTokenAccount = tokenAccount, account
 	}
 
-	result = append(result, raydium_amm.NewSwapBaseInInstruction(
-		amountIn,
-		miniAmountOut,
-		solana.TokenProgramID,
+	result = append(result, raydium_amm.NewSwapBaseIn(
 		poolAddr,
-		AmmAuthority,
+		AmmV4Authority,
 		poolAmmV4.OpenOrders,
-		poolAmmV4.TargetOrders,
 		vault0,
 		vault1,
 		OpenBookProgram,
@@ -230,7 +245,30 @@ func (v *V4Client) createSwapInstruction(
 		inputTokenAccount,
 		outputTokenAccount,
 		v.PublicKey(),
-	).Build())
+		amountIn,
+		miniAmountOut,
+	))
+	// result = append(result, raydium_amm.NewSwapBaseInInstruction(
+	// 	amountIn,
+	// 	miniAmountOut,
+	// 	solana.TokenProgramID,
+	// 	poolAddr,
+	// 	AmmV4Authority,
+	// 	poolAmmV4.OpenOrders,
+	// 	vault0,
+	// 	vault1,
+	// 	OpenBookProgram,
+	// 	poolAmmV4.Market,
+	// 	market.Bids,
+	// 	market.Asks,
+	// 	market.EventQueue,
+	// 	market.BaseVault,
+	// 	market.QuoteVault,
+	// 	serumVaultSigner,
+	// 	inputTokenAccount,
+	// 	outputTokenAccount,
+	// 	v.PublicKey(),
+	// ).Build())
 	result = append(result, closeAccount)
 
 	return result, nil
@@ -247,14 +285,7 @@ func (v *V4Client) createAccountInstruction(amountIn uint64) ([]solana.Instructi
 	}
 	wsolAccountSeed := base64.URLEncoding.EncodeToString(seed)
 
-	// 创建 WSOL 账户地址
-	wsolAccount, _, err := solana.FindProgramAddress(
-		[][]byte{
-			v.PublicKey().Bytes(),
-			[]byte(wsolAccountSeed),
-		},
-		solana.TokenProgramID,
-	)
+	wsolAccount, err := solana.CreateWithSeed(v.PublicKey(), wsolAccountSeed, solana.TokenProgramID)
 	if err != nil {
 		return nil, nil, solana.PublicKey{}, fmt.Errorf("failed to create WSOL account address: %v", err)
 	}
@@ -271,6 +302,7 @@ func (v *V4Client) createAccountInstruction(amountIn uint64) ([]solana.Instructi
 
 	return MakeCreateWSOLAccountInstructions(
 		v.PublicKey(),
+		wsolAccountSeed,
 		wsolAccount,
 		rentExemptBalance+uint64(amountIn),
 	), MakeCloseAccountInstruction(wsolAccount, v.PublicKey(), v.PublicKey()), wsolAccount, nil
@@ -278,23 +310,27 @@ func (v *V4Client) createAccountInstruction(amountIn uint64) ([]solana.Instructi
 
 // 检查是否有对应mint地址的账户,如果没有则创建
 func (v *V4Client) checkTokenAccount(mint solana.PublicKey) (solana.Instruction, solana.PublicKey, error) {
-	tokenAccount, err := GetAssociatedTokenAddress(v.PublicKey(), mint)
+	out, err := v.GetClient().GetTokenAccountsByOwner(
+		context.TODO(),
+		v.PublicKey(), &rpc.GetTokenAccountsConfig{
+			Mint: &mint,
+		}, &rpc.GetTokenAccountsOpts{
+			Commitment: rpc.CommitmentProcessed,
+		})
 	if err != nil {
-		return nil, solana.PublicKey{}, fmt.Errorf("failed to get token account: %v", err)
+		return nil, solana.PublicKey{}, err
 	}
-
-	// 检查代币账户是否存在
-	_, err = v.GetClient().GetAccountInfo(context.TODO(), tokenAccount)
-	createTokenAccount := err != nil
-	// 如果代币账户不存在，创建代币账户
-	if createTokenAccount {
-		createTokenAccountInstruction := MakeCreateAssociatedTokenAccountInstruction(
+	if len(out.Value) > 0 {
+		return nil, out.Value[0].Pubkey, nil
+	} else {
+		tokenAccount, err := GetAssociatedTokenAddress(v.PublicKey(), mint)
+		if err != nil {
+			return nil, solana.PublicKey{}, err
+		}
+		return associatedtokenaccount.NewCreateInstruction(
 			v.PublicKey(),
 			v.PublicKey(),
 			mint,
-		)
-		log.Debugf("创建 Quote 过渡账户 | %s", tokenAccount.String())
-		return createTokenAccountInstruction, tokenAccount, nil
+		).Build(), tokenAccount, nil
 	}
-	return nil, tokenAccount, nil
 }

@@ -4,6 +4,7 @@ package raydium_amm
 
 import (
 	"errors"
+	"encoding/binary"
 	ag_binary "github.com/gagliardetto/binary"
 	ag_solanago "github.com/gagliardetto/solana-go"
 	ag_format "github.com/gagliardetto/solana-go/text/format"
@@ -117,158 +118,148 @@ func (inst *SwapBaseIn) GetAmmOpenOrdersAccount() *ag_solanago.AccountMeta {
 	return inst.AccountMetaSlice.Get(3)
 }
 
-// SetAmmTargetOrdersAccount sets the "ammTargetOrders" account.
-func (inst *SwapBaseIn) SetAmmTargetOrdersAccount(ammTargetOrders ag_solanago.PublicKey) *SwapBaseIn {
-	inst.AccountMetaSlice[4] = ag_solanago.Meta(ammTargetOrders).WRITE()
-	return inst
-}
-
-// GetAmmTargetOrdersAccount gets the "ammTargetOrders" account.
-func (inst *SwapBaseIn) GetAmmTargetOrdersAccount() *ag_solanago.AccountMeta {
-	return inst.AccountMetaSlice.Get(4)
-}
 
 // SetPoolCoinTokenAccountAccount sets the "poolCoinTokenAccount" account.
 func (inst *SwapBaseIn) SetPoolCoinTokenAccountAccount(poolCoinTokenAccount ag_solanago.PublicKey) *SwapBaseIn {
-	inst.AccountMetaSlice[5] = ag_solanago.Meta(poolCoinTokenAccount).WRITE()
+	inst.AccountMetaSlice[4] = ag_solanago.Meta(poolCoinTokenAccount).WRITE()
 	return inst
 }
 
 // GetPoolCoinTokenAccountAccount gets the "poolCoinTokenAccount" account.
 func (inst *SwapBaseIn) GetPoolCoinTokenAccountAccount() *ag_solanago.AccountMeta {
-	return inst.AccountMetaSlice.Get(5)
+	return inst.AccountMetaSlice.Get(4)
 }
 
 // SetPoolPcTokenAccountAccount sets the "poolPcTokenAccount" account.
 func (inst *SwapBaseIn) SetPoolPcTokenAccountAccount(poolPcTokenAccount ag_solanago.PublicKey) *SwapBaseIn {
-	inst.AccountMetaSlice[6] = ag_solanago.Meta(poolPcTokenAccount).WRITE()
+	inst.AccountMetaSlice[5] = ag_solanago.Meta(poolPcTokenAccount).WRITE()
 	return inst
 }
 
 // GetPoolPcTokenAccountAccount gets the "poolPcTokenAccount" account.
 func (inst *SwapBaseIn) GetPoolPcTokenAccountAccount() *ag_solanago.AccountMeta {
-	return inst.AccountMetaSlice.Get(6)
+	return inst.AccountMetaSlice.Get(5)
 }
 
 // SetSerumProgramAccount sets the "serumProgram" account.
 func (inst *SwapBaseIn) SetSerumProgramAccount(serumProgram ag_solanago.PublicKey) *SwapBaseIn {
-	inst.AccountMetaSlice[7] = ag_solanago.Meta(serumProgram)
+	inst.AccountMetaSlice[6] = ag_solanago.Meta(serumProgram)
 	return inst
 }
 
 // GetSerumProgramAccount gets the "serumProgram" account.
 func (inst *SwapBaseIn) GetSerumProgramAccount() *ag_solanago.AccountMeta {
-	return inst.AccountMetaSlice.Get(7)
+	return inst.AccountMetaSlice.Get(6)
 }
 
 // SetSerumMarketAccount sets the "serumMarket" account.
 func (inst *SwapBaseIn) SetSerumMarketAccount(serumMarket ag_solanago.PublicKey) *SwapBaseIn {
-	inst.AccountMetaSlice[8] = ag_solanago.Meta(serumMarket).WRITE()
+	inst.AccountMetaSlice[7] = ag_solanago.Meta(serumMarket).WRITE()
 	return inst
 }
 
 // GetSerumMarketAccount gets the "serumMarket" account.
 func (inst *SwapBaseIn) GetSerumMarketAccount() *ag_solanago.AccountMeta {
-	return inst.AccountMetaSlice.Get(8)
+	return inst.AccountMetaSlice.Get(7)
 }
 
 // SetSerumBidsAccount sets the "serumBids" account.
 func (inst *SwapBaseIn) SetSerumBidsAccount(serumBids ag_solanago.PublicKey) *SwapBaseIn {
-	inst.AccountMetaSlice[9] = ag_solanago.Meta(serumBids).WRITE()
+	inst.AccountMetaSlice[8] = ag_solanago.Meta(serumBids).WRITE()
 	return inst
 }
 
 // GetSerumBidsAccount gets the "serumBids" account.
 func (inst *SwapBaseIn) GetSerumBidsAccount() *ag_solanago.AccountMeta {
-	return inst.AccountMetaSlice.Get(9)
+	return inst.AccountMetaSlice.Get(8)
 }
 
 // SetSerumAsksAccount sets the "serumAsks" account.
 func (inst *SwapBaseIn) SetSerumAsksAccount(serumAsks ag_solanago.PublicKey) *SwapBaseIn {
-	inst.AccountMetaSlice[10] = ag_solanago.Meta(serumAsks).WRITE()
+	inst.AccountMetaSlice[9] = ag_solanago.Meta(serumAsks).WRITE()
 	return inst
 }
 
 // GetSerumAsksAccount gets the "serumAsks" account.
 func (inst *SwapBaseIn) GetSerumAsksAccount() *ag_solanago.AccountMeta {
-	return inst.AccountMetaSlice.Get(10)
+	return inst.AccountMetaSlice.Get(9)
 }
 
 // SetSerumEventQueueAccount sets the "serumEventQueue" account.
 func (inst *SwapBaseIn) SetSerumEventQueueAccount(serumEventQueue ag_solanago.PublicKey) *SwapBaseIn {
-	inst.AccountMetaSlice[11] = ag_solanago.Meta(serumEventQueue).WRITE()
+	inst.AccountMetaSlice[10] = ag_solanago.Meta(serumEventQueue).WRITE()
 	return inst
 }
 
 // GetSerumEventQueueAccount gets the "serumEventQueue" account.
 func (inst *SwapBaseIn) GetSerumEventQueueAccount() *ag_solanago.AccountMeta {
-	return inst.AccountMetaSlice.Get(11)
+	return inst.AccountMetaSlice.Get(10)
 }
 
 // SetSerumCoinVaultAccountAccount sets the "serumCoinVaultAccount" account.
 func (inst *SwapBaseIn) SetSerumCoinVaultAccountAccount(serumCoinVaultAccount ag_solanago.PublicKey) *SwapBaseIn {
-	inst.AccountMetaSlice[12] = ag_solanago.Meta(serumCoinVaultAccount).WRITE()
+	inst.AccountMetaSlice[11] = ag_solanago.Meta(serumCoinVaultAccount).WRITE()
 	return inst
 }
 
 // GetSerumCoinVaultAccountAccount gets the "serumCoinVaultAccount" account.
 func (inst *SwapBaseIn) GetSerumCoinVaultAccountAccount() *ag_solanago.AccountMeta {
-	return inst.AccountMetaSlice.Get(12)
+	return inst.AccountMetaSlice.Get(11)
 }
 
 // SetSerumPcVaultAccountAccount sets the "serumPcVaultAccount" account.
 func (inst *SwapBaseIn) SetSerumPcVaultAccountAccount(serumPcVaultAccount ag_solanago.PublicKey) *SwapBaseIn {
-	inst.AccountMetaSlice[13] = ag_solanago.Meta(serumPcVaultAccount).WRITE()
+	inst.AccountMetaSlice[12] = ag_solanago.Meta(serumPcVaultAccount).WRITE()
 	return inst
 }
 
 // GetSerumPcVaultAccountAccount gets the "serumPcVaultAccount" account.
 func (inst *SwapBaseIn) GetSerumPcVaultAccountAccount() *ag_solanago.AccountMeta {
-	return inst.AccountMetaSlice.Get(13)
+	return inst.AccountMetaSlice.Get(12)
 }
 
 // SetSerumVaultSignerAccount sets the "serumVaultSigner" account.
 func (inst *SwapBaseIn) SetSerumVaultSignerAccount(serumVaultSigner ag_solanago.PublicKey) *SwapBaseIn {
-	inst.AccountMetaSlice[14] = ag_solanago.Meta(serumVaultSigner)
+	inst.AccountMetaSlice[13] = ag_solanago.Meta(serumVaultSigner)
 	return inst
 }
 
 // GetSerumVaultSignerAccount gets the "serumVaultSigner" account.
 func (inst *SwapBaseIn) GetSerumVaultSignerAccount() *ag_solanago.AccountMeta {
-	return inst.AccountMetaSlice.Get(14)
+	return inst.AccountMetaSlice.Get(13)
 }
 
 // SetUerSourceTokenAccountAccount sets the "uerSourceTokenAccount" account.
 func (inst *SwapBaseIn) SetUerSourceTokenAccountAccount(uerSourceTokenAccount ag_solanago.PublicKey) *SwapBaseIn {
-	inst.AccountMetaSlice[15] = ag_solanago.Meta(uerSourceTokenAccount).WRITE()
+	inst.AccountMetaSlice[14] = ag_solanago.Meta(uerSourceTokenAccount).WRITE()
 	return inst
 }
 
 // GetUerSourceTokenAccountAccount gets the "uerSourceTokenAccount" account.
 func (inst *SwapBaseIn) GetUerSourceTokenAccountAccount() *ag_solanago.AccountMeta {
-	return inst.AccountMetaSlice.Get(15)
+	return inst.AccountMetaSlice.Get(14)
 }
 
 // SetUerDestinationTokenAccountAccount sets the "uerDestinationTokenAccount" account.
 func (inst *SwapBaseIn) SetUerDestinationTokenAccountAccount(uerDestinationTokenAccount ag_solanago.PublicKey) *SwapBaseIn {
-	inst.AccountMetaSlice[16] = ag_solanago.Meta(uerDestinationTokenAccount).WRITE()
+	inst.AccountMetaSlice[15] = ag_solanago.Meta(uerDestinationTokenAccount).WRITE()
 	return inst
 }
 
 // GetUerDestinationTokenAccountAccount gets the "uerDestinationTokenAccount" account.
 func (inst *SwapBaseIn) GetUerDestinationTokenAccountAccount() *ag_solanago.AccountMeta {
-	return inst.AccountMetaSlice.Get(16)
+	return inst.AccountMetaSlice.Get(15)
 }
 
 // SetUserSourceOwnerAccount sets the "userSourceOwner" account.
 func (inst *SwapBaseIn) SetUserSourceOwnerAccount(userSourceOwner ag_solanago.PublicKey) *SwapBaseIn {
-	inst.AccountMetaSlice[17] = ag_solanago.Meta(userSourceOwner).SIGNER()
+	inst.AccountMetaSlice[16] = ag_solanago.Meta(userSourceOwner).SIGNER()
 	return inst
 }
 
 // GetUserSourceOwnerAccount gets the "userSourceOwner" account.
 func (inst *SwapBaseIn) GetUserSourceOwnerAccount() *ag_solanago.AccountMeta {
-	return inst.AccountMetaSlice.Get(17)
+	return inst.AccountMetaSlice.Get(16)
 }
 
 func (inst SwapBaseIn) Build() *Instruction {
@@ -435,7 +426,6 @@ func NewSwapBaseInInstruction(
 	amm ag_solanago.PublicKey,
 	ammAuthority ag_solanago.PublicKey,
 	ammOpenOrders ag_solanago.PublicKey,
-	ammTargetOrders ag_solanago.PublicKey,
 	poolCoinTokenAccount ag_solanago.PublicKey,
 	poolPcTokenAccount ag_solanago.PublicKey,
 	serumProgram ag_solanago.PublicKey,
@@ -456,7 +446,7 @@ func NewSwapBaseInInstruction(
 		SetAmmAccount(amm).
 		SetAmmAuthorityAccount(ammAuthority).
 		SetAmmOpenOrdersAccount(ammOpenOrders).
-		SetAmmTargetOrdersAccount(ammTargetOrders).
+		// SetAmmTargetOrdersAccount(ammTargetOrders).
 		SetPoolCoinTokenAccountAccount(poolCoinTokenAccount).
 		SetPoolPcTokenAccountAccount(poolPcTokenAccount).
 		SetSerumProgramAccount(serumProgram).
@@ -470,4 +460,75 @@ func NewSwapBaseInInstruction(
 		SetUerSourceTokenAccountAccount(uerSourceTokenAccount).
 		SetUerDestinationTokenAccountAccount(uerDestinationTokenAccount).
 		SetUserSourceOwnerAccount(userSourceOwner)
+}
+
+
+// SwapBaseIn 执行基于输入金额的代币交换  
+func NewSwapBaseIn(  
+    ammPool ag_solanago.PublicKey,  
+    ammAuthority ag_solanago.PublicKey,  
+    ammOpenOrders ag_solanago.PublicKey,  
+    ammCoinVault ag_solanago.PublicKey,  
+    ammPcVault ag_solanago.PublicKey,  
+    marketProgram ag_solanago.PublicKey,  
+    market ag_solanago.PublicKey,  
+    marketBids ag_solanago.PublicKey,  
+    marketAsks ag_solanago.PublicKey,  
+    marketEventQueue ag_solanago.PublicKey,  
+    marketCoinVault ag_solanago.PublicKey,  
+    marketPcVault ag_solanago.PublicKey,  
+    marketVaultSigner ag_solanago.PublicKey,  
+    userTokenSource ag_solanago.PublicKey,  
+    userTokenDestination ag_solanago.PublicKey,  
+    userSourceOwner ag_solanago.PublicKey,  
+    amountIn uint64,  
+    minimumAmountOut uint64,  
+) *ag_solanago.GenericInstruction {  
+    // 1. 创建swap_base_in指令  
+    data := encodeSwapBaseInInstruction(amountIn, minimumAmountOut)  
+      
+    // 2. 设置账户元数据  
+    accounts := ag_solanago.AccountMetaSlice{  
+        {PublicKey: ag_solanago.TokenProgramID, IsWritable: false, IsSigner: false},  
+        {PublicKey: ammPool, IsWritable: true, IsSigner: false},  
+        {PublicKey: ammAuthority, IsWritable: false, IsSigner: false},  
+        {PublicKey: ammOpenOrders, IsWritable: true, IsSigner: false},  
+        {PublicKey: ammCoinVault, IsWritable: true, IsSigner: false},  
+        {PublicKey: ammPcVault, IsWritable: true, IsSigner: false},  
+        {PublicKey: marketProgram, IsWritable: false, IsSigner: false},  
+        {PublicKey: market, IsWritable: true, IsSigner: false},  
+        {PublicKey: marketBids, IsWritable: true, IsSigner: false},  
+        {PublicKey: marketAsks, IsWritable: true, IsSigner: false},  
+        {PublicKey: marketEventQueue, IsWritable: true, IsSigner: false},  
+        {PublicKey: marketCoinVault, IsWritable: true, IsSigner: false},  
+        {PublicKey: marketPcVault, IsWritable: true, IsSigner: false},  
+        {PublicKey: marketVaultSigner, IsWritable: false, IsSigner: false},  
+        {PublicKey: userTokenSource, IsWritable: true, IsSigner: false},  
+        {PublicKey: userTokenDestination, IsWritable: true, IsSigner: false},  
+        {PublicKey: userSourceOwner, IsWritable: false, IsSigner: true},  
+    }  
+      
+    // 3. 创建指令  
+	instruction := ag_solanago.NewInstruction(
+		ProgramID, 
+		accounts, 
+		data,
+	)
+      
+      
+    return instruction  
+}  
+  
+// encodeSwapBaseInInstruction 编码swap_base_in指令数据  
+func encodeSwapBaseInInstruction(amountIn, minimumAmountOut uint64) []byte {  
+    data := make([]byte, 17) // 1字节指令ID + 8字节amountIn + 8字节minimumAmountOut  
+    data[0] = 9 // swap_base_in指令ID  
+      
+    // 编码amountIn (小端序)  
+    binary.LittleEndian.PutUint64(data[1:9], amountIn)  
+      
+    // 编码minimumAmountOut (小端序)  
+    binary.LittleEndian.PutUint64(data[9:17], minimumAmountOut)  
+      
+    return data  
 }

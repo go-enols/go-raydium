@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"encoding/binary"  
 
 	ag_binary "github.com/gagliardetto/binary"
 	ag_solanago "github.com/gagliardetto/solana-go"
@@ -1064,7 +1065,14 @@ func (pc *PrecisionCalculator) CalculatePrice(camm *PoolState) *big.Rat {
 	// 第四层：最终比率生成
 	return new(big.Rat).SetFrac(numerator, denominator)
 }
-
+// SwapDirection 表示交换方向  
+type SwapDirection bool  
+  
+const (  
+	Coin2PC SwapDirection = true // 从 Coin 到 PC  
+	PC2Coin SwapDirection = false                     // 从 PC 到 Coin  
+)  
+  
 func (obj *PoolState) Price() float64{
 	pc := NewPrecisionCalculator()
 	priceRat := pc.CalculatePrice(obj)
@@ -1074,6 +1082,57 @@ func (obj *PoolState) Price() float64{
 	}
 	return priceFloat
 }
+// 计算带滑点的金额  
+func (obj *PoolState)AmountWithSlippage(amount uint64, slippage float64, isMaxIn bool) uint64 {  
+    amountBig := new(big.Float).SetUint64(amount)  
+    slippageBig := new(big.Float).SetFloat64(slippage)  
+      
+    var result *big.Float  
+    if isMaxIn {  
+        // 计算最大输入量(增加滑点)  
+        onePlusSlippage := new(big.Float).Add(big.NewFloat(1.0), slippageBig)  
+        result = new(big.Float).Mul(amountBig, onePlusSlippage)  
+    } else {  
+        // 计算最小输出量(减少滑点)  
+        oneMinusSlippage := new(big.Float).Sub(big.NewFloat(1.0), slippageBig)  
+        result = new(big.Float).Mul(amountBig, oneMinusSlippage)  
+    }  
+      
+    // 转换回uint64  
+    resultUint64, _ := result.Uint64()  
+    return resultUint64  
+}
+// 计算10的n次方  
+func multiplier(decimals uint8) *big.Float {  
+    return new(big.Float).SetFloat64(math.Pow(10, float64(decimals)))  
+}  
+  
+// 将价格转换为sqrtPriceX64格式  
+func (obj *PoolState)PriceToSqrtPriceX64() *big.Int {  
+    priceBig := new(big.Float).SetFloat64(obj.Price()*(1-0.05))  
+      
+    // 考虑代币小数位数调整价格  
+    multiplier1 := multiplier(obj.MintDecimals0)  
+    multiplier0 := multiplier(obj.MintDecimals1)  
+      
+    // price * 10^decimals1 / 10^decimals0  
+    priceWithDecimals := new(big.Float).Mul(priceBig, multiplier1)  
+    priceWithDecimals = new(big.Float).Quo(priceWithDecimals, multiplier0)  
+      
+    // 计算平方根  
+    sqrtPrice := new(big.Float).Sqrt(priceWithDecimals)  
+      
+    // 转换为Q64.64格式  
+    // 2^64 = 18446744073709551616  
+    q64Multiplier := new(big.Float).SetFloat64(18446744073709551616.0)  
+    sqrtPriceX64Float := new(big.Float).Mul(sqrtPrice, q64Multiplier)  
+      
+    // 转换为big.Int  
+    sqrtPriceX64Int, _ := new(big.Int).SetString(sqrtPriceX64Float.Text('f', 0), 10)  
+    return sqrtPriceX64Int  
+}
+
+
 
 type ProtocolPositionState struct {
 	// Bump to identify PDA
@@ -1421,3 +1480,46 @@ func (obj *TickArrayBitmapExtension) UnmarshalWithDecoder(decoder *ag_binary.Dec
 	}
 	return nil
 }
+
+// Constants matching Raydium CLMM protocol  
+const (  
+	TICK_ARRAY_SIZE = 60  
+	TICK_ARRAY_SEED = "tick_array"  
+)  
+
+  
+// GetArrayStartIndex calculates the start index of a tick array based on a tick index  
+// This matches the Rust implementation in tick_array.rs  
+func GetArrayStartIndex(tickIndex int32, tickSpacing uint16) int32 {  
+	ticksInArray := int32(tickSpacing) * TICK_ARRAY_SIZE  
+	start := tickIndex / ticksInArray  
+	if tickIndex < 0 && tickIndex%ticksInArray != 0 {  
+		start = start - 1  
+	}  
+	return start * ticksInArray  
+}  
+  
+// GetTickArrayAddress calculates the PDA address for a tick array  
+func GetTickArrayAddress(programID ag_solanago.PublicKey, poolID ag_solanago.PublicKey, tickIndex int32, tickSpacing uint16) (ag_solanago.PublicKey, uint8, error) {  
+	// Calculate tick_array_start_index  
+	tickArrayStartIndex := GetArrayStartIndex(tickIndex, tickSpacing)  
+	  
+	// Convert to byte array - using big-endian byte order (BE)  
+	tickArrayStartIndexBytes := make([]byte, 4)  
+	binary.BigEndian.PutUint32(tickArrayStartIndexBytes, uint32(tickArrayStartIndex))  
+	  
+	// Generate PDA address  
+	seeds := [][]byte{  
+		[]byte(TICK_ARRAY_SEED),  
+		poolID[:],  
+		tickArrayStartIndexBytes,  
+	}  
+	  
+	return ag_solanago.FindProgramAddress(seeds, programID)  
+}  
+  
+
+// GetCurrentTickArrayAddress gets the tick array address for the current tick in the pool  
+func (pool *PoolState) GetCurrentTickArrayAddress(programID ag_solanago.PublicKey, poolID ag_solanago.PublicKey) (ag_solanago.PublicKey, uint8, error) {  
+	return GetTickArrayAddress(programID, poolID, pool.TickCurrent, pool.TickSpacing)  
+} 

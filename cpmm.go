@@ -9,12 +9,17 @@ import (
 
 	bin "github.com/gagliardetto/binary"
 	"github.com/gagliardetto/solana-go"
+	associatedtokenaccount "github.com/gagliardetto/solana-go/programs/associated-token-account"
 	computebudget "github.com/gagliardetto/solana-go/programs/compute-budget"
 	"github.com/gagliardetto/solana-go/rpc"
 	"github.com/go-enols/go-log"
 	"github.com/go-enols/go-raydium/raydium_cp_swap"
 	"github.com/go-enols/gosolana"
 )
+
+func init() {
+	raydium_cp_swap.SetProgramID(CPMMProgramId)
+}
 
 type CpmmClient struct {
 	*gosolana.Wallet
@@ -142,12 +147,12 @@ func (c *CpmmClient) createSwapInstruction(
 		amountOut = amount / price * (1 - slippage)
 		miniAmountOut = uint64(amountOut * math.Pow10(int(priceInfo.BaseDecimals)))
 		log.Debugf("SHELL %.6f %s -> %.6f %s ", amount, priceInfo.QuoteName, amountOut, priceInfo.BaseName)
-		vault0, vault1 = vault1, vault0                                               //反转tokenValue账户
-		inputTokenProgram, outputTokenProgram = outputTokenProgram, inputTokenProgram // 反转程序账户
-		mint0, mint1 = mint1, mint0                                                   // 反转Mint账户
 	}
-
-	crteteAccount, closeAccount, account, err := c.createAccountInstruction(amountIn)
+	solIn := amountIn
+	if !isBuy {
+		solIn = 0
+	}
+	crteteAccount, closeAccount, account, err := c.createAccountInstruction(solIn)
 	if err != nil {
 		return nil, err
 	}
@@ -167,6 +172,9 @@ func (c *CpmmClient) createSwapInstruction(
 		inputTokenAccount, outputTokenAccount = account, tokenAccount
 	} else {
 		inputTokenAccount, outputTokenAccount = tokenAccount, account
+		vault0, vault1 = vault1, vault0                                               //反转tokenValue账户
+		inputTokenProgram, outputTokenProgram = outputTokenProgram, inputTokenProgram // 反转程序账户
+		mint0, mint1 = mint1, mint0                                                   // 反转Mint账户
 	}
 
 	result = append(
@@ -203,14 +211,7 @@ func (v *CpmmClient) createAccountInstruction(amountIn uint64) ([]solana.Instruc
 	}
 	wsolAccountSeed := base64.URLEncoding.EncodeToString(seed)
 
-	// 创建 WSOL 账户地址
-	wsolAccount, _, err := solana.FindProgramAddress(
-		[][]byte{
-			v.PublicKey().Bytes(),
-			[]byte(wsolAccountSeed),
-		},
-		solana.TokenProgramID,
-	)
+	wsolAccount, err := solana.CreateWithSeed(v.PublicKey(), wsolAccountSeed, solana.TokenProgramID)
 	if err != nil {
 		return nil, nil, solana.PublicKey{}, fmt.Errorf("failed to create WSOL account address: %v", err)
 	}
@@ -227,6 +228,7 @@ func (v *CpmmClient) createAccountInstruction(amountIn uint64) ([]solana.Instruc
 
 	return MakeCreateWSOLAccountInstructions(
 		v.PublicKey(),
+		wsolAccountSeed,
 		wsolAccount,
 		rentExemptBalance+uint64(amountIn),
 	), MakeCloseAccountInstruction(wsolAccount, v.PublicKey(), v.PublicKey()), wsolAccount, nil
@@ -234,23 +236,27 @@ func (v *CpmmClient) createAccountInstruction(amountIn uint64) ([]solana.Instruc
 
 // 检查是否有对应mint地址的账户,如果没有则创建
 func (v *CpmmClient) checkTokenAccount(mint solana.PublicKey) (solana.Instruction, solana.PublicKey, error) {
-	tokenAccount, err := GetAssociatedTokenAddress(v.PublicKey(), mint)
+	out, err := v.GetClient().GetTokenAccountsByOwner(
+		context.TODO(),
+		v.PublicKey(), &rpc.GetTokenAccountsConfig{
+			Mint: &mint,
+		}, &rpc.GetTokenAccountsOpts{
+			Commitment: rpc.CommitmentProcessed,
+		})
 	if err != nil {
-		return nil, solana.PublicKey{}, fmt.Errorf("failed to get token account: %v", err)
+		return nil, solana.PublicKey{}, err
 	}
-
-	// 检查代币账户是否存在
-	_, err = v.GetClient().GetAccountInfo(context.TODO(), tokenAccount)
-	createTokenAccount := err != nil
-	// 如果代币账户不存在，创建代币账户
-	if createTokenAccount {
-		createTokenAccountInstruction := MakeCreateAssociatedTokenAccountInstruction(
+	if len(out.Value) > 0 {
+		return nil, out.Value[0].Pubkey, nil
+	} else {
+		tokenAccount, err := GetAssociatedTokenAddress(v.PublicKey(), mint)
+		if err != nil {
+			return nil, solana.PublicKey{}, err
+		}
+		return associatedtokenaccount.NewCreateInstruction(
 			v.PublicKey(),
 			v.PublicKey(),
 			mint,
-		)
-		log.Debugf("创建 Quote 过渡账户 | %s", tokenAccount.String())
-		return createTokenAccountInstruction, tokenAccount, nil
+		).Build(), tokenAccount, nil
 	}
-	return nil, tokenAccount, nil
 }

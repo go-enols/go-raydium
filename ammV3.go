@@ -12,10 +12,16 @@ import (
 
 	bin "github.com/gagliardetto/binary"
 	"github.com/gagliardetto/solana-go"
+	associatedtokenaccount "github.com/gagliardetto/solana-go/programs/associated-token-account"
 	"github.com/gagliardetto/solana-go/rpc"
 	"github.com/go-enols/go-log"
 	"github.com/go-enols/gosolana"
 )
+
+func init() {
+	// 设置AmmV3的程序地址
+	amm_v3.SetProgramID(AmmV3ProgramId)
+}
 
 type V3Client struct {
 	*gosolana.Wallet
@@ -100,7 +106,11 @@ func (v *V3Client) CreateInstruction(
 	slippage float64,
 ) ([]solana.Instruction, error) {
 	var rseult []solana.Instruction
-	crteteAccount, closeAccount, account, err := v.createAccountInstruction(amountIn)
+	solIn := amountIn
+	if !isBuy {
+		solIn = 0
+	}
+	crteteAccount, closeAccount, account, err := v.createAccountInstruction(solIn)
 	if err != nil {
 		return nil, err
 	}
@@ -129,14 +139,7 @@ func (v *V3Client) createAccountInstruction(amountIn uint64) ([]solana.Instructi
 	}
 	wsolAccountSeed := base64.URLEncoding.EncodeToString(seed)
 
-	// 创建 WSOL 账户地址
-	wsolAccount, _, err := solana.FindProgramAddress(
-		[][]byte{
-			v.PublicKey().Bytes(),
-			[]byte(wsolAccountSeed),
-		},
-		solana.TokenProgramID,
-	)
+	wsolAccount, err := solana.CreateWithSeed(v.PublicKey(), wsolAccountSeed, solana.TokenProgramID)
 	if err != nil {
 		return nil, nil, solana.PublicKey{}, fmt.Errorf("failed to create WSOL account address: %v", err)
 	}
@@ -153,6 +156,7 @@ func (v *V3Client) createAccountInstruction(amountIn uint64) ([]solana.Instructi
 
 	return MakeCreateWSOLAccountInstructions(
 		v.PublicKey(),
+		wsolAccountSeed,
 		wsolAccount,
 		rentExemptBalance+uint64(amountIn),
 	), MakeCloseAccountInstruction(wsolAccount, v.PublicKey(), v.PublicKey()), wsolAccount, nil
@@ -189,26 +193,13 @@ func (v *V3Client) createSwapInstruction(
 	poolAddr solana.PublicKey,
 	poolAmmV3 *amm_v3.PoolState,
 	isBuy bool,
-	slippage float64,
+	slippage float64, // 先预留一下
 ) ([]solana.Instruction, error) {
 	var result []solana.Instruction
 	price := poolAmmV3.Price()
 	log.Debugf("当前价格：%.6f", price)
-	var otherAmountThreshold uint64
-	var amountInput float64
-	if isBuy {
-		//最小接收数量，即愿意接受的最少输出代币数量
-		amountInput = float64(amountIn/uint64(math.Pow10(int(poolAmmV3.MintDecimals0)))) * (1 - slippage) * price
-		otherAmountThreshold = uint64(amountInput * math.Pow10(int(poolAmmV3.MintDecimals1)))
 
-	} else {
-		// 计算最终 最大支付数量，即愿意支付的最多输入代币数量
-		// 可能需要考虑一下是否有足够的代币，如果没有的话就会出问题，也许可以去掉 (1 + slippage)
-		amountInput = float64(amountIn/uint64(math.Pow10(int(poolAmmV3.MintDecimals1)))) * (1 + slippage)
-		otherAmountThreshold = uint64(amountInput * math.Pow10(int(poolAmmV3.MintDecimals1)))
-
-	}
-	log.Debugf("限价 | %.6f | 交换金额: %d | 最少获得金额: %d", price, amountIn, otherAmountThreshold)
+	log.Debugf("限价 | %.6f | 交换金额: %d ", price, amountIn)
 	inter, tokenAccount, err := v.checkTokenAccount(poolAmmV3.TokenMint1)
 	if err != nil {
 		return nil, err
@@ -216,48 +207,59 @@ func (v *V3Client) createSwapInstruction(
 	if inter != nil {
 		result = append(result, inter)
 	}
-
-	result = append(result, amm_v3.NewSwapV2Instruction(
+	tickArray, _, err := poolAmmV3.GetCurrentTickArrayAddress(AmmV3ProgramId, poolAddr)
+	if err != nil {
+		return nil, err
+	}
+	if !isBuy {
+		createTempAccount, tokenAccount = tokenAccount, createTempAccount
+		poolAmmV3.TokenVault0, poolAmmV3.TokenVault1 = poolAmmV3.TokenVault1, poolAmmV3.TokenVault0
+	}
+	log.Debug(createTempAccount.String())
+	log.Debug(tokenAccount.String())
+	result = append(result, amm_v3.NewSwapInstruction(
 		amountIn,
-		otherAmountThreshold,   // 最小输出量
-		poolAmmV3.SqrtPriceX64, // 价格限制
-		isBuy,
+		0,
+		bin.Uint128{},
+		true,
 		v.PublicKey(),
 		poolAmmV3.AmmConfig,
 		poolAddr,
-		createTempAccount, // 应该是代币提供者，不知道
+		createTempAccount,
 		tokenAccount,
 		poolAmmV3.TokenVault0,
 		poolAmmV3.TokenVault1,
 		poolAmmV3.ObservationKey,
 		solana.TokenProgramID,
-		solana.Token2022ProgramID,
-		solana.MemoProgramID,
-		poolAmmV3.TokenMint0,
-		poolAmmV3.TokenMint1,
+		tickArray,
 	).Build())
 	return result, nil
 }
 
 // 检查是否有对应mint地址的账户,如果没有则创建
 func (v *V3Client) checkTokenAccount(mint solana.PublicKey) (solana.Instruction, solana.PublicKey, error) {
-	tokenAccount, err := GetAssociatedTokenAddress(v.PublicKey(), mint)
+	out, err := v.GetClient().GetTokenAccountsByOwner(
+		context.TODO(),
+		v.PublicKey(), &rpc.GetTokenAccountsConfig{
+			Mint: &mint,
+		}, &rpc.GetTokenAccountsOpts{
+			Commitment: rpc.CommitmentProcessed,
+		})
 	if err != nil {
-		return nil, solana.PublicKey{}, fmt.Errorf("failed to get token account: %v", err)
+		return nil, solana.PublicKey{}, err
 	}
-
-	// 检查代币账户是否存在
-	_, err = v.GetClient().GetAccountInfo(context.TODO(), tokenAccount)
-	createTokenAccount := err != nil
-	// 如果代币账户不存在，创建代币账户
-	if createTokenAccount {
-		createTokenAccountInstruction := MakeCreateAssociatedTokenAccountInstruction(
+	if len(out.Value) > 0 {
+		return nil, out.Value[0].Pubkey, nil
+	} else {
+		tokenAccount, err := GetAssociatedTokenAddress(v.PublicKey(), mint)
+		if err != nil {
+			return nil, solana.PublicKey{}, err
+		}
+		log.Debug(tokenAccount.String())
+		return associatedtokenaccount.NewCreateInstruction(
 			v.PublicKey(),
 			v.PublicKey(),
 			mint,
-		)
-		log.Debugf("创建 Quote 过渡账户 | %s", tokenAccount.String())
-		return createTokenAccountInstruction, tokenAccount, nil
+		).Build(), tokenAccount, nil
 	}
-	return nil, tokenAccount, nil
 }

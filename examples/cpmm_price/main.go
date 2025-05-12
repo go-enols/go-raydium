@@ -14,11 +14,7 @@ import (
 )
 
 var (
-	Proxy               = "http://127.0.0.1:7890"
-	NetWork rpc.Cluster = rpc.Cluster{
-		RPC: "https://mainnet.helius-rpc.com/?api-key=ce5ee933-a6ba-46b3-8e00-3f08bb2c49b1",
-		WS:  "wss://mainnet.helius-rpc.com/?api-key=ce5ee933-a6ba-46b3-8e00-3f08bb2c49b1",
-	}
+	NetWork rpc.Cluster = rpc.MainNetBeta
 )
 
 func main() {
@@ -27,9 +23,6 @@ func main() {
 	option := gosolana.Option{
 		RpcUrl: NetWork.RPC,
 		WsUrl:  NetWork.WS,
-		// Proxy:   Proxy,
-		// WsProxy: Proxy,
-		Pkey: "26HX8sewDP8Y6xTE3v4DtR5HHB5D4ua1MUxPEHyUA2j3SrFt4FDLwaXTWZg7BoeGGooyojtftUjR8CTMCczhQyrD",
 	}
 	wallet, err := gosolana.NewWallet(ctx, option)
 	if err != nil {

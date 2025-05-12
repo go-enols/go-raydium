@@ -12,11 +12,7 @@ import (
 )
 
 var (
-	Proxy               = "http://127.0.0.1:7890"
-	NetWork rpc.Cluster = rpc.Cluster{
-		RPC: "https://mainnet.helius-rpc.com/?api-key=ce5ee933-a6ba-46b3-8e00-3f08bb2c49b1",
-		WS:  "wss://mainnet.helius-rpc.com/?api-key=ce5ee933-a6ba-46b3-8e00-3f08bb2c49b1",
-	}
+	NetWork rpc.Cluster = rpc.MainNetBeta
 )
 
 func main() {
@@ -25,18 +21,57 @@ func main() {
 	option := gosolana.Option{
 		RpcUrl: NetWork.RPC,
 		WsUrl:  NetWork.WS,
-		// Proxy:   Proxy,
-		// WsProxy: Proxy,
-		Pkey: "26HX8sewDP8Y6xTE3v4DtR5HHB5D4ua1MUxPEHyUA2j3SrFt4FDLwaXTWZg7BoeGGooyojtftUjR8CTMCczhQyrD",
 	}
 	wallet, err := gosolana.NewWallet(ctx, option)
 	if err != nil {
 		log.Fatal(err)
 	}
-	poolAddress := solana.MustPublicKeyFromBase58("5bT1XknyBory9vgHKSJ7VMf4wB2u3fx1biPVnZ3WrKSu")
+	poolAddress := solana.MustPublicKeyFromBase58("3ucNos4NbumPLZNWztqGHNFFgkHeRMBQAVemeeomsUxv")
 
 	// ammBuild := amm_v3.NewSwapV2InstructionBuilder().SetAmount(amount uint64)
 	client := raydium.NewV3Client(wallet)
-
-	log.Debug(client.Swap(ctx, 1, poolAddress, true, 0.01))
+	tx, err := client.Swap(ctx, 1.5, poolAddress, false, 0.05)
+	if err != nil {
+		log.Errorf("创建交易失败 | %s", err)
+		return
+	}
+	log.Debug(tx.String())
+	// return
+	// 签名交易
+	out, err := tx.Sign(func(key solana.PublicKey) *solana.PrivateKey {
+		if key.Equals(wallet.PublicKey()) {
+			return &wallet.PrivateKey
+		}
+		return nil
+	})
+	if err != nil {
+		log.Print("签名交易失败", err.Error())
+		return
+	}
+	log.Printf("签名交易输出 | %v", out)
+	// 7. 发送交易
+	sig, err := wallet.GetClient().SendTransactionWithOpts(
+		context.Background(),
+		tx,
+		rpc.TransactionOpts{
+			SkipPreflight:       false,
+			PreflightCommitment: rpc.CommitmentFinalized,
+		},
+	)
+	if err != nil {
+		log.Errorf("发送交易失败 %s", err)
+		return
+	}
+	log.Printf("[INFO] Transaction Signature: %s", sig)
+	log.Printf("[INFO] 交易详情 | %v", tx) // 打印交易详情
+	result, err := wallet.GetTransaction(ctx, sig)
+	if err != nil {
+		log.Printf("[ERROR] 获取交易状态失败 | %s", err)
+		return
+	}
+	if result {
+		log.Debug("交易成功")
+	} else {
+		log.Error("交易失败")
+	}
 }

@@ -402,3 +402,4 @@ func NewSwapInstruction(
 		SetTokenProgramAccount(tokenProgram).
 		SetTickArrayAccount(tickArray)
 }
+

@@ -18,38 +18,6 @@ import (
 	"github.com/go-enols/go-raydium/raydium_cp_swap"
 )
 
-// 创建关联代币账户指令
-func MakeCreateAssociatedTokenAccountInstruction(
-	payer solana.PublicKey,
-	owner solana.PublicKey,
-	mint solana.PublicKey,
-) solana.Instruction {
-	ata, _, _ := solana.FindProgramAddress(
-		[][]byte{
-			owner.Bytes(),
-			solana.TokenProgramID.Bytes(),
-			mint.Bytes(),
-		},
-		solana.SPLAssociatedTokenAccountProgramID,
-	)
-
-	accounts := solana.AccountMetaSlice{
-		{PublicKey: payer, IsSigner: true, IsWritable: true},
-		{PublicKey: ata, IsSigner: false, IsWritable: true},
-		{PublicKey: owner, IsSigner: false, IsWritable: false},
-		{PublicKey: mint, IsSigner: false, IsWritable: false},
-		{PublicKey: solana.SystemProgramID, IsSigner: false, IsWritable: false},
-		{PublicKey: solana.TokenProgramID, IsSigner: false, IsWritable: false},
-		{PublicKey: solana.SysVarRentPubkey, IsSigner: false, IsWritable: false},
-	}
-
-	return solana.NewInstruction(
-		solana.SPLAssociatedTokenAccountProgramID,
-		accounts,
-		[]byte{},
-	)
-}
-
 // 获取关联代币账户地址
 func GetAssociatedTokenAddress(wallet, mint solana.PublicKey) (solana.PublicKey, error) {
 	seeds := [][]byte{
@@ -66,24 +34,28 @@ func GetAssociatedTokenAddress(wallet, mint solana.PublicKey) (solana.PublicKey,
 
 // 创建临时 WSOL 账户指令
 func MakeCreateWSOLAccountInstructions(
-	owner solana.PublicKey,
+	base solana.PublicKey,
+	seed string,
 	wsolAccount solana.PublicKey,
 	lamports uint64,
 ) []solana.Instruction {
 	return []solana.Instruction{
-		system.NewCreateAccountInstruction(
-			lamports,
-			165,
-			solana.TokenProgramID,
-			owner,
-			wsolAccount,
-		).Build(),
-		token.NewInitializeAccountInstruction(
-			wsolAccount,
-			solana.SystemProgramID,
-			owner,
-			solana.TokenProgramID,
-		).Build(),
+		system.NewCreateAccountWithSeedInstructionBuilder().
+			SetBase(base).                   // Set base public key
+			SetSeed(seed).                   // Set seed string
+			SetLamports(lamports).           // Set lamports amount
+			SetSpace(ACCOUNT_LAYOUT_LEN).    // Set space to allocate
+			SetOwner(solana.TokenProgramID). // Set owner program
+			SetFundingAccount(base).         // Set funding account
+			SetCreatedAccount(wsolAccount).  // Set created account
+			SetBaseAccount(base).            // Set base account
+			Build(),                         // Build the instruction
+		token.NewInitializeAccountInstructionBuilder().
+			SetAccount(wsolAccount).
+			SetMintAccount(WSOL).
+			SetOwnerAccount(base).
+			SetSysVarRentPubkeyAccount(solana.SysVarRentPubkey).
+			Build(),
 	}
 }
 
